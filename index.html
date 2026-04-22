@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=430, initial-scale=1.0, maximum-scale=1.0">
+<title>OPC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c26;--border:#2a2a3a;
+  --text:#e8e8f0;--muted:#6b6b8a;--accent:#4a9eff;
+  --red:#e05555;--green:#4caf6e;--blue:#4a9eff;--purple:#9b6fd4;--black:#888;--yellow:#d4b84a;
+  --font-d:'Bebas Neue',sans-serif;--font-b:'Noto Sans JP',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);min-height:100vh}
+button{cursor:pointer;font-family:var(--font-b);border:none;outline:none}
+input,select{font-family:var(--font-b)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:20px;height:52px;position:sticky;top:0;z-index:100}
+#logo{font-family:var(--font-d);font-size:28px;letter-spacing:3px;color:var(--accent)}
+.tab{padding:6px 16px;border-radius:6px;font-size:13px;font-weight:500;background:transparent;color:var(--muted);transition:all 0.2s}
+.tab.active{background:var(--accent);color:#fff}
+.hub{display:none;padding:16px}
+.hub.active{display:block}
+#tire-wrap{overflow-x:auto}
+#tire-table{border-collapse:collapse;table-layout:fixed}
+#tire-table th{padding:8px 4px;font-family:var(--font-d);letter-spacing:2px;font-size:13px;border-bottom:2px solid;text-align:center}
+.tire-h{width:44px!important;color:var(--muted)!important;border-color:var(--border)!important;font-size:11px!important}
+#tire-table td{padding:4px;border-bottom:1px solid var(--border);vertical-align:top}
+.row-num{text-align:center;font-size:12px;color:var(--muted);font-family:var(--font-d)}
+.card-cell{width:88px;height:110px;border-radius:8px;overflow:hidden;cursor:pointer;position:relative;border:2px solid transparent;transition:all 0.15s;background:var(--surface2)}
+.card-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.card-cell.sel{box-shadow:0 0 0 3px rgba(74,158,255,0.4)}
+.card-cell.mov{border-color:#f0a030;box-shadow:0 0 0 3px rgba(240,160,48,0.3)}
+.card-cell.dim{opacity:0.45}
+.empty-cell{width:88px;height:110px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);opacity:0.3}
+.sbadge{position:absolute;top:3px;right:3px;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px}
+.sb-rc{background:var(--accent);color:#fff}
+.sb-en{background:rgba(0,0,0,0.6);color:#aaa}
+#move-bar{display:none;position:sticky;top:0;z-index:50;background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;margin-bottom:12px;align-items:center;justify-content:space-between;font-size:14px;font-weight:700}
+#move-bar.show{display:flex}
+.mbtn{background:rgba(255,255,255,0.2);color:#fff;padding:6px 16px;border-radius:6px;font-size:18px}
+.mdone{background:rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:6px;font-size:13px}
+#sel-panel{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;z-index:80;gap:12px;align-items:flex-start}
+#sel-panel.show{display:flex}
+#sel-imgs{display:flex;gap:8px;flex:1;overflow-x:auto}
+#sel-imgs img{height:110px;width:auto;border-radius:8px;border:1px solid var(--border);object-fit:cover}
+#sel-acts{display:flex;flex-direction:column;gap:8px;min-width:90px}
+.abtn{background:var(--surface2);color:var(--text);padding:8px 10px;border-radius:8px;font-size:12px;border:1px solid var(--border);font-weight:500}
+.cbtn{background:transparent;color:var(--muted);padding:6px 10px;border-radius:8px;font-size:12px}
+#lhdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+#ltitle{font-family:var(--font-d);font-size:22px;letter-spacing:2px}
+#addbtn{background:var(--accent);color:#fff;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:700}
+.litem{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.litem img{width:50px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+.linfo{flex:1}
+.lname{font-size:14px;font-weight:700;margin-bottom:4px}
+.ltags{display:flex;gap:6px;flex-wrap:wrap}
+.ltag{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);color:var(--muted)}
+.dbtn{background:transparent;color:var(--red);font-size:18px;padding:4px 8px}
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;z-index:200}
+.mbg.show{display:flex}
+.mbox{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:360px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.mbox h3{font-family:var(--font-d);font-size:20px;letter-spacing:2px;margin-bottom:16px}
+.fld{margin-bottom:12px}
+.fld label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+.fld input,.fld select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:14px}
+.iarea{border:2px dashed var(--border);border-radius:10px;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:14px;overflow:hidden;outline:none;transition:border-color 0.2s}
+.iarea.hi{border-color:var(--accent)}
+.iarea img{width:100%;height:100%;object-fit:contain}
+.hint{font-size:13px;color:var(--muted);text-align:center;line-height:1.8}
+.cbtnrow{display:flex;gap:6px}
+.colbtn{flex:1;padding:8px 0;border-radius:6px;font-size:12px;font-weight:700;border:1px solid;transition:all 0.15s}
+.mbtns{display:flex;gap:10px;margin-top:16px}
+.bcancel{flex:1;padding:10px;background:var(--surface2);color:var(--muted);border-radius:8px;font-size:14px}
+.bsave{flex:1;padding:10px;background:var(--accent);color:#fff;border-radius:8px;font-size:14px;font-weight:700}
+.bsave:disabled{opacity:0.5}
+.bfull{width:100%;padding:10px;border-radius:8px;font-size:14px;margin-bottom:8px}
+.stbtn{width:100%;padding:12px;border-radius:8px;font-size:15px;font-weight:700;margin-bottom:10px;background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.stbtn.act{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dimgs{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.diwrap img{height:100px;width:auto;border-radius:6px;border:1px solid var(--border)}
+.dibtns{display:flex;gap:4px;margin-top:4px;justify-content:center}
+.dibtns button{background:var(--surface2);color:var(--text);padding:2px 6px;border-radius:4px;font-size:12px}
+.parea{border:2px dashed var(--border);border-radius:10px;height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;outline:none;margin-bottom:12px;overflow:hidden;transition:border-color 0.2s;cursor:text}
+.parea.hi{border-color:var(--accent)}
+.parea img{width:100%;height:100%;object-fit:contain}
+#loading{display:flex;align-items:center;justify-content:center;height:60vh;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div id="header">
+  <span id="logo">OPC</span>
+  <div style="display:flex;gap:4px">
+    <button class="tab active" onclick="showHub('tire')">TIRE</button>
+    <button class="tab" onclick="showHub('leader')">リーダー登録</button>
+  </div>
+</div>
+<div id="loading">読み込み中...</div>
+
+<div id="hub-tire" class="hub">
+  <div id="move-bar">
+    <span>移動モード</span>
+    <div style="display:flex;gap:8px">
+      <button class="mbtn" onclick="moveCard(-1)">↑</button>
+      <button class="mbtn" onclick="moveCard(1)">↓</button>
+      <button class="mdone" onclick="endMove()">完了</button>
+    </div>
+  </div>
+  <div id="tire-wrap"><table id="tire-table"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  <div id="sel-panel">
+    <div id="sel-imgs"></div>
+    <div id="sel-acts">
+      <button class="abtn" onclick="openDeckModal()">デッキ登録</button>
+      <button class="abtn" onclick="startMove()">移動</button>
+      <button class="abtn" onclick="openStatusModal()">状態</button>
+      <button class="cbtn" onclick="desel()">✕ 閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="hub-leader" class="hub">
+  <div id="lhdr"><h2 id="ltitle">リーダー登録</h2><button id="addbtn" onclick="openAdd()">＋ 追加</button></div>
+  <div id="llist"></div>
+</div>
+
+<!-- ADD MODAL -->
+<div id="m-add" class="mbg" onclick="bgc(event,'m-add')">
+  <div class="mbox">
+    <h3>リーダー追加</h3>
+    <div class="iarea" id="iarea" tabindex="0" onclick="document.getElementById('finput').click()" onpaste="addPaste(event)">
+      <div class="hint">📷<br>タップして選択<br>または画像をペースト</div>
+    </div>
+    <input type="file" id="finput" accept="image/*" style="display:none" onchange="filesel(event)">
+    <div class="fld"><label>名前（任意）</label><input type="text" id="aname" placeholder="リーダー名"></div>
+    <div class="fld"><label>色</label>
+      <select id="acolor">
+        <option>赤</option><option>緑</option><option>青</option><option>紫</option><option>黒</option><option>黄</option>
+        <option>赤緑</option><option>赤青</option><option>赤紫</option><option>赤黒</option><option>赤黄</option>
+        <option>緑青</option><option>緑紫</option><option>緑黒</option><option>緑黄</option>
+        <option>青紫</option><option>青黒</option><option>青黄</option>
+        <option>紫黒</option><option>紫黄</option><option>黒黄</option>
+      </select>
+    </div>
+    <div class="fld"><label>代表色</label><div class="cbtnrow" id="mcbtns"></div></div>
+    <div class="mbtns">
+      <button class="bcancel" onclick="cm('m-add')">キャンセル</button>
+      <button class="bsave" id="bsave" onclick="saveLeader()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEL MODAL -->
+<div id="m-del" class="mbg" onclick="bgc(event,'m-del')">
+  <div class="mbox">
+    <h3>削除確認</h3>
+    <p style="text-align:center;font-size:14px;margin-bottom:20px">このリーダーを削除しますか？</p>
+    <div class="mbtns">
+      <button class="bcancel" onclick="cm('m-del')">キャンセル</button>
+      <button style="flex:1;padding:10px;background:var(--red);color:#fff;border-radius:8px;font-size:14px;font-weight:700" onclick="confirmDel()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- DECK MODAL -->
+<div id="m-deck" class="mbg" onclick="bgc(event,'m-deck')">
+  <div class="mbox">
+    <h3>デッキ登録</h3>
+    <div id="dexist"></div>
+    <div id="dpaste"></div>
+    <button class="bcancel bfull" onclick="cm('m-deck')">閉じる</button>
+  </div>
+</div>
+
+<!-- STATUS MODAL -->
+<div id="m-status" class="mbg" onclick="bgc(event,'m-status')">
+  <div class="mbox">
+    <h3>状態を選択</h3>
+    <div id="stbtns"></div>
+    <button class="bcancel bfull" onclick="cm('m-status')">キャンセル</button>
+  </div>
+</div>
+
+<script>
+const SURL='https://ktohfvlkwpzzqfebzfyb.supabase.co'
+const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0b2hmdmxrd3B6enFmZWJ6ZnliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NTYyMzMsImV4cCI6MjA5MjMzMjIzM30.8apwtsXpKqDfUO_JOi-jZGQJt1oO4kfalfd8Qgzq4K4'
+const sb=supabase.createClient(SURL,SKEY)
+const MC=['赤','緑','青','紫','黒','黄']
+const CM={赤:'#e05555',緑:'#4caf6e',青:'#4a9eff',紫:'#9b6fd4',黒:'#888',黄:'#d4b84a'}
+const ROWS=14
+const ST=['ready','CS','EN','none']
+let leaders=[],selId=null,movId=null,delId=null,addFile=null,addMC='赤',dpFile=null
+
+async function init(){
+  buildMCBtns()
+  await fetchLeaders()
+  document.getElementById('loading').style.display='none'
+  showHub('tire')
+}
+
+async function fetchLeaders(){
+  const{data,error}=await sb.from('leaders').select('*,deck_images(*)').order('tire_row',{ascending:true})
+  if(!error&&data)leaders=data
+  renderTire();renderList()
+}
+
+function showHub(h){
+  document.querySelectorAll('.hub').forEach(x=>x.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'))
+  document.getElementById('hub-'+h).classList.add('active')
+  document.querySelectorAll('.tab').forEach(t=>{if((h==='tire'&&t.textContent==='TIRE')||(h==='leader'&&t.textContent==='リーダー登録'))t.classList.add('active')})
+}
+
+function renderTire(){
+  const th=document.getElementById('thead')
+  th.innerHTML='<tr><th class="tire-h">TIRE</th>'+MC.map(c=>`<th style="color:${CM[c]};border-color:${CM[c]};width:96px">${c}</th>`).join('')+'</tr>'
+  const tb=document.getElementById('tbody');tb.innerHTML=''
+  for(let r=0;r<ROWS;r++){
+    const tr=document.createElement('tr')
+    tr.innerHTML=`<td class="row-num">${r+1}</td>`
+    MC.forEach(color=>{
+      const col=leaders.filter(l=>l.main_color===color).sort((a,b)=>a.tire_row-b.tire_row)
+      const l=col[r]||null;const td=document.createElement('td')
+      if(l){
+        const isSel=l.id===selId,isMov=l.id===movId
+        const bf=l.status==='ready'||l.status==='CS'
+        const dim=l.status==='none'
+        const mc=CM[l.main_color]||'#888'
+        let cls='card-cell'
+        if(isSel)cls+=' sel'
+        else if(isMov)cls+=' mov'
+        if(dim)cls+=' dim'
+        // border color: selected=white, moving=orange, ready/CS=main color, EN=none, none=main color faint
+        let borderColor='transparent'
+        let boxShadow='none'
+        if(isSel){borderColor=mc;boxShadow=`0 0 0 3px ${mc}66`}
+        else if(isMov){borderColor='#f0a030';boxShadow='0 0 0 3px rgba(240,160,48,0.3)'}
+        else if(bf){borderColor=mc;boxShadow=`0 0 8px ${mc}44`}
+        let badge=''
+        if(l.status==='ready')badge='<div class="sbadge sb-rc">ready</div>'
+        else if(l.status==='CS')badge='<div class="sbadge sb-rc">CS</div>'
+        else if(l.status==='EN')badge='<div class="sbadge sb-en">EN</div>'
+        td.innerHTML=`<div class="${cls}" style="border-color:${borderColor};box-shadow:${boxShadow}" onclick="sel('${l.id}')">${l.image_url?`<img src="${l.image_url}" alt="">`:''} ${badge}</div>`
+      }else{
+        // empty cell - clickable in move mode
+        if(movId){
+          td.innerHTML=`<div class="empty-cell" style="opacity:0.5;cursor:pointer;border:2px dashed var(--border)" onclick="moveToEmpty('${color}',${r})"></div>`
+        }else{
+          td.innerHTML='<div class="empty-cell"></div>'
+        }
+      }
+      tr.appendChild(td)
+    })
+    tb.appendChild(tr)
+  }
+  updPanel()
+}
+
+function sel(id){if(movId)return;selId=selId===id?null:id;renderTire()}
+function desel(){selId=null;renderTire()}
+
+function updPanel(){
+  const p=document.getElementById('sel-panel')
+  if(!selId||movId){p.classList.remove('show');return}
+  const l=leaders.find(x=>x.id===selId);if(!l){p.classList.remove('show');return}
+  p.classList.add('show')
+  const di=(l.deck_images||[]).sort((a,b)=>a.display_order-b.display_order)
+  document.getElementById('sel-imgs').innerHTML=(l.image_url?`<img src="${l.image_url}" alt="">`:'')
+    +di.map(d=>`<img src="${d.image_url}" alt="">`).join('')
+}
+
+function startMove(){movId=selId;selId=null;document.getElementById('move-bar').classList.add('show');document.getElementById('sel-panel').classList.remove('show');renderTire()}
+
+async function moveCard(dir){
+  const l=leaders.find(x=>x.id===movId);if(!l)return
+  const col=leaders.filter(x=>x.main_color===l.main_color).sort((a,b)=>a.tire_row-b.tire_row)
+  const i=col.findIndex(x=>x.id===l.id)
+  // Find next card in direction or empty slot
+  if(dir===-1){
+    // Move up: find card above or go to row above
+    if(i>0){
+      const o=col[i-1]
+      await sb.from('leaders').update({tire_row:o.tire_row}).eq('id',l.id)
+      await sb.from('leaders').update({tire_row:l.tire_row}).eq('id',o.id)
+    }else{
+      // Already at top, move to row above (free slot)
+      const newRow=Math.max(0,l.tire_row-1)
+      if(newRow!==l.tire_row)await sb.from('leaders').update({tire_row:newRow}).eq('id',l.id)
+    }
+  }else{
+    if(i<col.length-1){
+      const o=col[i+1]
+      await sb.from('leaders').update({tire_row:o.tire_row}).eq('id',l.id)
+      await sb.from('leaders').update({tire_row:l.tire_row}).eq('id',o.id)
+    }else{
+      // Move to next free row
+      const newRow=Math.min(ROWS-1,l.tire_row+1)
+      if(newRow!==l.tire_row)await sb.from('leaders').update({tire_row:newRow}).eq('id',l.id)
+    }
+  }
+  await fetchLeaders()
+}
+
+async function moveToEmpty(color,row){
+  // Move moving card to a specific empty slot
+  const l=leaders.find(x=>x.id===movId);if(!l)return
+  // Check if that slot is truly empty
+  const col=leaders.filter(x=>x.main_color===color).sort((a,b)=>a.tire_row-b.tire_row)
+  const occupant=col[row]
+  if(occupant&&occupant.id!==movId)return // occupied
+  // Change main_color if different column, and set new tire_row
+  // Calculate actual row value: use row index as position among same-color cards
+  // We need a unique tire_row - use the visual row number as a base
+  const newTireRow=row*10+(MC.indexOf(color)) // unique enough
+  await sb.from('leaders').update({main_color:color,tire_row:newTireRow}).eq('id',movId)
+  endMove()
+  await fetchLeaders()
+}
+
+function endMove(){movId=null;document.getElementById('move-bar').classList.remove('show');renderTire()}
+
+function openStatusModal(){
+  const l=leaders.find(x=>x.id===selId);if(!l)return
+  document.getElementById('stbtns').innerHTML=ST.map(s=>`<button class="stbtn${l.status===s?' act':''}" onclick="setSt('${s}')">${s}</button>`).join('')
+  document.getElementById('m-status').classList.add('show')
+}
+
+async function setSt(s){
+  await sb.from('leaders').update({status:s}).eq('id',selId)
+  cm('m-status');await fetchLeaders()
+}
+
+function openDeckModal(){
+  const l=leaders.find(x=>x.id===selId);if(!l)return
+  dpFile=null;renderDeck(l);document.getElementById('m-deck').classList.add('show')
+}
+
+function renderDeck(l){
+  const di=(l.deck_images||[]).sort((a,b)=>a.display_order-b.display_order)
+  const ex=document.getElementById('dexist')
+  if(di.length>0){
+    ex.innerHTML=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">登録済み（${di.length}/2）</div>
+    <div class="dimgs">${di.map((d,i)=>`<div class="diwrap"><img src="${d.image_url}" alt="">
+    <div class="dibtns">
+      ${i>0?`<button onclick="rdeck('${d.id}',${i},${i-1})">←</button>`:''}
+      ${i<di.length-1?`<button onclick="rdeck('${d.id}',${i},${i+1})">→</button>`:''}
+      <button onclick="ddeck('${d.id}')" style="color:var(--red)">🗑</button>
+    </div></div>`).join('')}</div>`
+  }else{ex.innerHTML=''}
+  const dp=document.getElementById('dpaste')
+  if(di.length<2){
+    dp.innerHTML=`<div class="parea${dpFile?' hi':''}" id="parea" tabindex="0" onpaste="dpaste(event)">
+      ${dpFile?'<img id="pprev" alt="">':'<div class="hint">📋<br>ここをタップして<br>画像をペースト（Cmd/Ctrl+V）</div>'}
+    </div>${dpFile?'<button class="bsave bfull" id="baddeck" onclick="saveDeck()">追加する</button>':''}`
+    if(dpFile){const p=document.getElementById('pprev');if(p)p.src=URL.createObjectURL(dpFile)}
+  }else{dp.innerHTML=''}
+}
+
+function dpaste(e){
+  const items=e.clipboardData?.items;if(!items)return
+  for(const item of items){if(item.type.startsWith('image/')){dpFile=item.getAsFile();const l=leaders.find(x=>x.id===selId);if(l)renderDeck(l);break}}
+}
+
+async function saveDeck(){
+  if(!dpFile)return
+  const l=leaders.find(x=>x.id===selId);if(!l)return
+  if((l.deck_images||[]).length>=2){alert('デッキ画像は2枚までです');return}
+  const btn=document.getElementById('baddeck');if(btn){btn.textContent='保存中...';btn.disabled=true}
+  try{
+    const path=`decks/${Date.now()}.png`
+    const{error:ue}=await sb.storage.from('opc-images').upload(path,dpFile);if(ue)throw ue
+    const{data:ud}=sb.storage.from('opc-images').getPublicUrl(path)
+    const{error}=await sb.from('deck_images').insert({leader_id:selId,image_url:ud.publicUrl,display_order:(l.deck_images||[]).length})
+    if(error)throw error
+    dpFile=null;await fetchLeaders();const ul=leaders.find(x=>x.id===selId);if(ul)renderDeck(ul)
+  }catch(err){alert('エラー: '+err.message)}
+}
+
+async function ddeck(id){
+  await sb.from('deck_images').delete().eq('id',id)
+  await fetchLeaders();const ul=leaders.find(x=>x.id===selId);if(ul)renderDeck(ul)
+}
+
+async function rdeck(id,fi,ti){
+  const l=leaders.find(x=>x.id===selId);if(!l)return
+  const imgs=[...(l.deck_images||[])].sort((a,b)=>a.display_order-b.display_order)
+  const[m]=imgs.splice(fi,1);imgs.splice(ti,0,m)
+  for(let i=0;i<imgs.length;i++)await sb.from('deck_images').update({display_order:i}).eq('id',imgs[i].id)
+  await fetchLeaders();const ul=leaders.find(x=>x.id===selId);if(ul)renderDeck(ul)
+}
+
+function renderList(){
+  const list=document.getElementById('llist')
+  if(leaders.length===0){list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:14px">まだリーダーが登録されていません</div>';return}
+  list.innerHTML=leaders.map(l=>`<div class="litem">
+    ${l.image_url?`<img src="${l.image_url}" alt="">`:'<div style="width:50px;height:70px;background:var(--surface2);border-radius:6px"></div>'}
+    <div class="linfo">
+      ${l.name?`<div class="lname">${l.name}</div>`:''}
+      <div class="ltags">
+        <span class="ltag">色: ${l.color}</span>
+        <span class="ltag" style="background:${CM[l.main_color]}33;color:${CM[l.main_color]};font-weight:700">代表色: ${l.main_color}</span>
+        <span class="ltag">状態: ${l.status}</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button class="abtn" style="font-size:11px;padding:4px 8px" onclick="openEdit('${l.id}')">編集</button>
+      <button class="dbtn" onclick="openDel('${l.id}')">🗑</button>
+    </div>
+  </div>`).join('')
+}
+
+function buildMCBtns(){
+  document.getElementById('mcbtns').innerHTML=MC.map(c=>`<button class="colbtn" id="mc-${c}" onclick="setMC('${c}')"
+    style="color:${c===addMC?'#fff':CM[c]};border-color:${CM[c]};background:${c===addMC?CM[c]:'var(--surface2)'}"
+  >${c}</button>`).join('')
+}
+
+function setMC(c){addMC=c;buildMCBtns()}
+
+function openAdd(){
+  editId=null;addFile=null;addMC='赤'
+  document.getElementById('aname').value=''
+  document.getElementById('acolor').value='赤'
+  const a=document.getElementById('iarea');a.innerHTML='<div class="hint">📷<br>タップして選択<br>または画像をペースト</div>';a.classList.remove('hi')
+  document.querySelector('#m-add h3').textContent='リーダー追加'
+  document.getElementById('bsave').textContent='保存'
+  buildMCBtns();document.getElementById('m-add').classList.add('show')
+}
+
+function filesel(e){const f=e.target.files[0];if(!f)return;addFile=f;showPrev(f)}
+function addPaste(e){const items=e.clipboardData?.items;if(!items)return;for(const i of items){if(i.type.startsWith('image/')){addFile=i.getAsFile();showPrev(addFile);break}}}
+function showPrev(f){const a=document.getElementById('iarea');a.classList.add('hi');a.innerHTML=`<img src="${URL.createObjectURL(f)}">`}
+
+async function saveLeader(){
+  const btn=document.getElementById('bsave');btn.textContent='保存中...';btn.disabled=true
+  try{
+    let imageUrl=null
+    if(addFile){
+      const ext=addFile.name?.split('.').pop()||'png'
+      const path=`leaders/${Date.now()}.${ext}`
+      const{error:ue}=await sb.storage.from('opc-images').upload(path,addFile);if(ue)throw ue
+      const{data:ud}=sb.storage.from('opc-images').getPublicUrl(path)
+      imageUrl=ud.publicUrl
+    }
+    const name=document.getElementById('aname').value.trim()||null
+    const color=document.getElementById('acolor').value
+    if(editId){
+      // Update existing
+      const updates={name,color,main_color:addMC}
+      if(imageUrl)updates.image_url=imageUrl
+      const{error}=await sb.from('leaders').update(updates).eq('id',editId)
+      if(error)throw error
+    }else{
+      // Insert new
+      if(!addFile){alert('画像を選択してください');btn.textContent='保存';btn.disabled=false;return}
+      const maxRow=leaders.length>0?Math.max(...leaders.map(l=>l.tire_row))+1:0
+      const{error}=await sb.from('leaders').insert({name,color,main_color:addMC,image_url:imageUrl,tire_row:maxRow,status:'none'})
+      if(error)throw error
+    }
+    cm('m-add');await fetchLeaders()
+  }catch(err){alert('エラー: '+err.message)}
+  btn.textContent='保存';btn.disabled=false
+}
+
+function openDel(id){delId=id;document.getElementById('m-del').classList.add('show')}
+
+let editId=null
+function openEdit(id){
+  const l=leaders.find(x=>x.id===id);if(!l)return
+  editId=id;addFile=null;addMC=l.main_color
+  document.getElementById('aname').value=l.name||''
+  document.getElementById('acolor').value=l.color
+  const a=document.getElementById('iarea')
+  if(l.image_url){a.classList.add('hi');a.innerHTML=`<img src="${l.image_url}">`}
+  else{a.classList.remove('hi');a.innerHTML='<div class="hint">📷<br>タップして選択<br>または画像をペースト</div>'}
+  buildMCBtns()
+  document.querySelector('#m-add h3').textContent='リーダー編集'
+  document.getElementById('bsave').textContent='更新'
+  document.getElementById('m-add').classList.add('show')
+}
+async function confirmDel(){
+  if(!delId)return
+  await sb.from('leaders').delete().eq('id',delId)
+  delId=null;cm('m-del');await fetchLeaders()
+}
+
+function cm(id){document.getElementById(id).classList.remove('show')}
+function bgc(e,id){if(e.target.id===id)cm(id)}
+
+init()
+</script>
+</body>
+</html>
